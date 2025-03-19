@@ -2,6 +2,7 @@ import argparse
 from seleniumbase import SB
 import time
 import csv
+import os
 
 
 def scroll_to_target(sb, target_count):
@@ -131,10 +132,13 @@ def collect_data(sb, count):
 
 def write_to_csv(results, append=False):
     mode = 'a' if append else 'w'
+    # Проверяем, существует ли файл, чтобы записать заголовки только один раз
+    file_exists = os.path.exists('restaurants.csv')
     with open('restaurants.csv', mode, newline='', encoding='utf-8') as csvfile:
         fieldnames = ['Name', 'Address', 'Link']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        if not append:  # Записываем заголовки только для первого URL
+        # Записываем заголовки только если файл не существовал
+        if not file_exists and not append:
             writer.writeheader()
         for result in results:
             writer.writerow(result)
@@ -146,7 +150,6 @@ if __name__ == "__main__":
                         help='Number of tables to collect per URL')
     args = parser.parse_args()
 
-    # Читаем все URL из файла
     with open('links.txt', 'r') as file:
         urls = [line.strip() for line in file if line.strip()]
 
@@ -163,7 +166,7 @@ if __name__ == "__main__":
             results = collect_data(sb, actual_count)
             all_results.extend(results)
 
-            # Записываем результаты (для первого URL перезаписываем, для остальных добавляем)
+            # Для первого URL создаем файл, для остальных добавляем
             write_to_csv(results, append=(url_index > 1))
 
             print(
