@@ -3,12 +3,6 @@ from seleniumbase import SB
 import time
 import csv
 
-"""
-Для запуска python main.py -c
--c количество ресторанов для добавления
-Пример -c 50
-"""
-
 
 def scroll_to_target(sb, target_count):
     table_xpath = '//*[@id="QA0Szd"]/div/div/div[1]/div[2]/div/div[1]/div/div/div[1]/div[1]'
@@ -135,11 +129,13 @@ def collect_data(sb, count):
     return results
 
 
-def write_to_csv(results):
-    with open('restaurants.csv', 'w', newline='', encoding='utf-8') as csvfile:
+def write_to_csv(results, append=False):
+    mode = 'a' if append else 'w'
+    with open('restaurants.csv', mode, newline='', encoding='utf-8') as csvfile:
         fieldnames = ['Name', 'Address', 'Link']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
+        if not append:  # Записываем заголовки только для первого URL
+            writer.writeheader()
         for result in results:
             writer.writerow(result)
 
@@ -147,22 +143,34 @@ def write_to_csv(results):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Collect restaurant data')
     parser.add_argument('-c', '--count', type=int, required=True,
-                        help='Number of tables to collect')
+                        help='Number of tables to collect per URL')
     args = parser.parse_args()
 
+    # Читаем все URL из файла
     with open('links.txt', 'r') as file:
-        url = file.readline().strip()
+        urls = [line.strip() for line in file if line.strip()]
 
     with SB(uc=True, browser='chrome') as sb:
-        sb.open(url)
-        print("Страница открыта, ждем загрузки")
-        time.sleep(15)
+        all_results = []
+        for url_index, url in enumerate(urls, 1):
+            print(f"\nОбработка URL #{url_index}: {url}")
+            sb.open(url)
+            print("Страница открыта, ждем загрузки")
+            time.sleep(15)
 
-        visible_count = scroll_to_target(sb, args.count)
-        actual_count = min(visible_count, args.count)
-        results = collect_data(sb, actual_count)
-        write_to_csv(results)
-        print(f"Сбор завершен, собрано {len(results)} из {args.count} таблиц")
-        if visible_count < args.count:
+            visible_count = scroll_to_target(sb, args.count)
+            actual_count = min(visible_count, args.count)
+            results = collect_data(sb, actual_count)
+            all_results.extend(results)
+
+            # Записываем результаты (для первого URL перезаписываем, для остальных добавляем)
+            write_to_csv(results, append=(url_index > 1))
+
             print(
-                f"Внимание: в списке было меньше таблиц ({visible_count}), чем запрошено ({args.count})")
+                f"Завершена обработка URL #{url_index}, собрано {len(results)} из {args.count} таблиц")
+            if visible_count < args.count:
+                print(
+                    f"Внимание: в списке было меньше таблиц ({visible_count}), чем запрошено ({args.count})")
+
+        print(
+            f"\nОбработка всех URL завершена, всего собрано {len(all_results)} таблиц")
