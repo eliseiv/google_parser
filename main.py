@@ -59,7 +59,7 @@ def scroll_to_target(sb, target_count):
     return visible_tables
 
 
-def collect_data(sb, count):
+def collect_data(sb, count, url):
     table_xpath = '//*[@id="QA0Szd"]/div/div/div[1]/div[2]/div/div[1]/div/div/div[1]/div[1]'
     results = []
     table_index = 3
@@ -95,6 +95,7 @@ def collect_data(sb, count):
                     f"Адрес для div[{table_index}] отсутствует, записываем '-'")
 
             results.append({
+                'URL': url,  # Добавляем URL в данные
                 'Name': name,
                 'Address': address,
                 'Link': link
@@ -117,6 +118,7 @@ def collect_data(sb, count):
                         f"Альтернативный адрес для div[{table_index}] отсутствует, записываем '-'")
 
                 results.append({
+                    'URL': url,  # Добавляем URL в данные
                     'Name': name,
                     'Address': address,
                     'Link': link
@@ -132,12 +134,11 @@ def collect_data(sb, count):
 
 def write_to_csv(results, append=False):
     mode = 'a' if append else 'w'
-    # Проверяем, существует ли файл, чтобы записать заголовки только один раз
     file_exists = os.path.exists('restaurants.csv')
     with open('restaurants.csv', mode, newline='', encoding='utf-8') as csvfile:
-        fieldnames = ['Name', 'Address', 'Link']
+        fieldnames = ['URL', 'Name', 'Address',
+                      'Link']  # Обновляем список колонок
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        # Записываем заголовки только если файл не существовал
         if not file_exists and not append:
             writer.writeheader()
         for result in results:
@@ -163,10 +164,10 @@ if __name__ == "__main__":
 
             visible_count = scroll_to_target(sb, args.count)
             actual_count = min(visible_count, args.count)
-            results = collect_data(sb, actual_count)
+            # Передаем URL в collect_data
+            results = collect_data(sb, actual_count, url)
             all_results.extend(results)
 
-            # Для первого URL создаем файл, для остальных добавляем
             write_to_csv(results, append=(url_index > 1))
 
             print(
